@@ -1,0 +1,11 @@
+# 작업 부스러기
+node_modules/
+*.log
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 시험·실험용 (저장소에 넣지 않는다)
+exp/
+shots/
+*.zip

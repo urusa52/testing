@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="ko" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<!-- ── PWA 대비 (시스템_설계 5.5 · 모바일 앱 전환 경로) ─────────────────
+     지금: 홈 화면 추가 시 앱처럼 열리도록 메타·매니페스트 준비
+     호스팅 후: 서비스워커 추가로 정식 PWA → TWA(플레이스토어) 포장 -->
+<meta name="theme-color" content="#111319">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href='data:application/manifest+json,{"name":"외계인 찾기","short_name":"외계인찾기","display":"standalone","background_color":"%23111319","theme_color":"%23111319","start_url":"."}'>
+<title>외계인 찾기 — 문제</title>
+<link rel="stylesheet" href="ui.css">
+<style>
+  /* ============ 토큰은 ui.css(공용, shadcn 시맨틱)가 공급 ============
+     로컬 :root 정의 제거 (2026-09-01) — 라이트 테마도 ui.css 토큰이 처리 */
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{
+    max-width:560px; margin:0 auto; min-height:100vh;
+    padding:0 14px calc(env(safe-area-inset-bottom) + 108px);
+  }
+  header{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:calc(env(safe-area-inset-top) + 14px) 4px 12px;
+  }
+  .title{font-size:17px;font-weight:700} .title span{color:var(--primary)}
+  .hright{display:flex;gap:8px;align-items:center}
+  .ver{font-size:10.5px;color:var(--muted-foreground);user-select:none}
+  .iconbtn{width:34px;height:34px;border-radius:var(--radius-sm);border:1px solid var(--border);
+    background:transparent;color:var(--foreground);display:grid;place-items:center;cursor:pointer;font-size:14px;
+    font-family:inherit}
+
+  .card{background:var(--card);color:var(--card-foreground);border:1px solid var(--border);
+    border-radius:var(--radius);box-shadow:var(--shadow-sm);padding:16px;margin-bottom:12px}
+  .desc{color:var(--muted-foreground);font-size:13px;line-height:1.7}
+  .btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;
+    border:none;border-radius:var(--radius-sm);height:44px;padding:0 16px;font-size:14.5px;font-weight:600;
+    font-family:inherit;cursor:pointer}
+  .btn:disabled{opacity:.4;cursor:default}
+  .btn-mint{background:var(--primary);color:var(--primary-foreground)}
+  .btn-ghost{background:transparent;color:var(--foreground);border:1px solid var(--border)}
+  .btn-text{background:none;color:var(--muted-foreground);font-size:12px;font-weight:400;height:auto;padding:9px}
+  .btn-sm{font-size:13.5px;font-weight:600}
+  input[type=file]{display:none}
+
+  /* ---- 사진 ---- */
+  .photowrap{position:relative;border-radius:var(--radius-sm);overflow:hidden;background:var(--muted);
+    aspect-ratio:4/3;display:block}
+  .photowrap img{width:100%;height:100%;object-fit:cover;display:block}
+  .badges{position:absolute;left:10px;top:10px;display:flex;gap:6px;flex-wrap:wrap}
+  /* 사진 위 오버레이 배지 — 사진 밝기와 무관해야 해서 테마와 독립 (항상 어두운 딤) */
+  .badge{font-size:11px;font-weight:600;padding:5px 10px;border-radius:999px;
+    background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.18);color:rgba(237,239,245,.85)}
+  .badge.review{color:#FFD98E;border-color:#FFD98E}
+  .badge.found{color:#9FD4FF;border-color:#9FD4FF}
+  .badge.dormant{color:rgba(237,239,245,.7)}
+  .photonote{font-size:11px;color:var(--muted-foreground);margin-top:8px;text-align:right}
+
+  /* ---- 문제 요약 ---- */
+  .qtitle{font-size:21px;font-weight:700;margin-bottom:4px}
+  .qarea{font-size:12.5px;color:var(--muted-foreground);margin-bottom:12px}
+  .chips{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px}
+  .chip{font-size:12px;padding:7px 12px;border-radius:999px;background:var(--muted);
+    border:1px solid var(--border);color:var(--foreground);line-height:1.3}
+  .chip b{color:var(--primary);font-weight:700}
+  .chip.blue b{color:var(--secondary)}
+  .stat{font-size:13.5px;line-height:1.75;color:var(--foreground)}
+  .stat em{font-style:normal;color:var(--primary);font-weight:700}
+
+  /* ---- 힌트 ---- */
+  .sechead{font-size:12.5px;color:var(--muted-foreground);font-weight:600;margin-bottom:10px}
+  .hint{font-size:15px;line-height:1.65;padding:13px 14px;border-radius:var(--radius-sm);
+    background:var(--muted);border:1px dashed var(--input)}
+  .hint-extra{margin-top:9px;border-style:solid;border-color:var(--warning);color:var(--foreground)}
+  .hintfrom{display:block;font-size:11.5px;color:var(--muted-foreground);margin-top:7px}
+  .rewardline{display:flex;gap:8px;align-items:center;font-size:12.5px;color:var(--muted-foreground);
+    margin-top:12px;line-height:1.5}
+  .rewardline .dotmark{width:7px;height:7px;border-radius:50%;background:var(--primary);flex:none}
+  .rewardline.warn .dotmark{background:var(--warning)}
+  .toolrow{display:flex;gap:8px;margin-top:12px}
+  .toolrow .btn{flex:1}
+
+  /* ---- 하단 고정 주행동 ---- */
+  .gobar{position:fixed;left:0;right:0;bottom:0;max-width:560px;margin:0 auto;z-index:30;
+    padding:10px 14px calc(env(safe-area-inset-bottom) + 12px);
+    background:linear-gradient(to top, var(--background) 62%, transparent)}
+
+  /* ---- 시트 (확인 · 겹쳐보기 · 이동) ---- */
+  .sheetwrap{position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:60;display:none;
+    align-items:flex-end;justify-content:center}
+  .sheetwrap.on{display:flex;animation:fade .2s ease}
+  .sheet{width:100%;max-width:560px;background:var(--popover);color:var(--popover-foreground);
+    border:1px solid var(--border);border-bottom:none;
+    border-radius:var(--radius) var(--radius) 0 0;padding:20px 16px calc(env(safe-area-inset-bottom) + 18px);
+    box-shadow:var(--shadow-md);max-height:92vh;overflow-y:auto}
+  .sheet h2{font-size:17px;font-weight:700;margin-bottom:8px}
+  @keyframes fade{from{opacity:0}to{opacity:1}}
+  .sheetbtns{display:flex;gap:8px;margin-top:16px}
+  .sheetbtns .btn{flex:1}
+
+  /* ---- 겹쳐보기 ---- */
+  .blendbox{position:relative;border-radius:var(--radius-sm);overflow:hidden;background:var(--muted);
+    aspect-ratio:4/3;margin:6px 0 12px}
+  .blendbox img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}
+  #blendMine{opacity:.5}
+  .slider{width:100%;accent-color:var(--primary);margin:2px 0 4px}
+  .sliderends{display:flex;justify-content:space-between;font-size:11.5px;color:var(--muted-foreground)}
+  .emptypick{display:grid;place-items:center;height:100%;text-align:center;padding:20px;
+    color:var(--muted-foreground);font-size:13px;line-height:1.8}
+
+  /* ---- 이동 연출 ---- */
+  #goStage{text-align:center;padding:8px 6px}
+  .spin{width:22px;height:22px;border:2.5px solid var(--border);border-top-color:var(--primary);
+    border-radius:50%;animation:spin .9s linear infinite;margin:8px auto 14px}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  #goIcon{font-size:44px;color:var(--primary);margin-bottom:8px}
+
+  /* ---- 개발자 모드 ---- */
+  #devPanel{position:fixed;left:0;right:0;bottom:0;max-width:560px;margin:0 auto;
+    background:color-mix(in srgb, var(--background) 92%, transparent);
+    backdrop-filter:blur(4px);border-top:2px solid var(--primary);
+    padding:13px 16px calc(env(safe-area-inset-bottom) + 12px);z-index:70;display:none;
+    max-height:64vh;overflow-y:auto}
+  #devPanel.on{display:block}
+  #devPanel h3{font-size:11px;color:var(--primary);letter-spacing:1px;margin-bottom:9px}
+  .dev-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px}
+  .dev-cell{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:6px 8px;overflow:hidden}
+  .dev-cell .k{font-size:9px;color:var(--muted-foreground)}
+  .dev-cell .v{font-size:12.5px;font-weight:700;font-family:ui-monospace,monospace;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .dev-slider{margin-bottom:8px;font-size:11px;color:var(--muted-foreground)}
+  .dev-slider input{width:100%;accent-color:var(--primary)}
+  #devQuest{width:100%;background:var(--card);color:var(--foreground);border:1px solid var(--input);
+    border-radius:8px;padding:7px;font-family:inherit;font-size:12px;margin-bottom:9px}
+  #devLog{background:var(--background);border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:10px;
+    font-family:ui-monospace,monospace;color:var(--muted-foreground);line-height:1.6;max-height:110px;
+    overflow-y:auto;white-space:pre-wrap}
+
+  #bootMsg{text-align:center;color:var(--muted-foreground);font-size:13px;padding:44px 20px;line-height:2}
+  .view{display:none} .view.on{display:block}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="title">외계인 <span>찾기</span></div>
+  <div class="hright">
+    <button class="iconbtn" id="btnTheme" title="테마">◐</button>
+    <div class="ver" id="verTap">v0.6.0 · M4</div>
+  </div>
+</header>
+
+<!-- 부팅 -->
+<div class="view on" id="viewBoot">
+  <div id="bootMsg"><div class="spin"></div>문제를 불러오는 중이에요…</div>
+</div>
+
+<!-- 상세 -->
+<div class="view" id="viewDetail">
+  <button class="btn btn-text" id="btnBack" style="text-align:left;justify-content:flex-start;padding-left:2px">← 지도로</button>
+
+  <div class="card">
+    <div class="photowrap">
+      <img id="questPhoto" alt="출제된 장면">
+      <div class="badges" id="questBadges"></div>
+    </div>
+    <div class="photonote">프로토타입 예시 이미지예요</div>
+  </div>
+
+  <div class="card">
+    <div class="qtitle" id="questTitle">—</div>
+    <div class="qarea" id="questArea">—</div>
+    <div class="chips" id="questChips"></div>
+    <div class="stat" id="questStat"></div>
+  </div>
+
+  <div class="card">
+    <div class="sechead">출제자가 남긴 힌트</div>
+    <div class="hint" id="hint1">—</div>
+    <div class="hint hint-extra" id="shrinkNote" style="display:none"></div>
+    <span class="hintfrom" id="hintFrom"></span>
+
+    <div class="toolrow">
+      <button class="btn btn-ghost btn-sm" id="btnPeek">범위 좁히기</button>
+      <button class="btn btn-ghost btn-sm" id="btnOverlay">겹쳐보기</button>
+    </div>
+
+    <div class="rewardline" id="rewardLine"><span class="dotmark"></span><span id="rewardText"></span></div>
+  </div>
+</div>
+
+<!-- 하단 주행동 -->
+<div class="gobar view" id="goBar">
+  <button class="btn btn-mint" id="btnGo">찾으러 가기</button>
+</div>
+
+<!-- 확인 시트 -->
+<div class="sheetwrap" id="confirmWrap">
+  <div class="sheet">
+    <h2 id="confirmTitle"></h2>
+    <div class="desc" id="confirmMsg"></div>
+    <div class="sheetbtns">
+      <button class="btn btn-ghost" id="confirmNo">아니요</button>
+      <button class="btn btn-mint" id="confirmYes">그럴게요</button>
+    </div>
+  </div>
+</div>
+
+<!-- 겹쳐보기 시트 -->
+<div class="sheetwrap" id="blendWrap">
+  <div class="sheet">
+    <h2>겹쳐보기</h2>
+    <div class="desc">출제된 장면 위에 내 사진을 겹쳐 봐요. 선이 맞아 들어가면 그 각도예요.</div>
+    <div class="blendbox" id="blendBox">
+      <img id="blendQuest" alt="출제된 장면">
+      <img id="blendMine" alt="내가 고른 사진" style="display:none">
+      <div class="emptypick" id="blendEmpty">
+        갤러리에서 내 사진을 하나 골라 주세요.<br>
+        <small>고른 사진은 이 화면 밖으로 나가지 않아요.</small>
+      </div>
+    </div>
+    <input type="range" class="slider" id="blendSlider" min="0" max="100" value="50">
+    <div class="sliderends"><span>출제된 장면</span><span>내 사진</span></div>
+    <div class="sheetbtns">
+      <button class="btn btn-ghost" id="btnPickMine">사진 고르기</button>
+      <button class="btn btn-mint" id="blendClose">닫기</button>
+    </div>
+    <input type="file" id="filePick" accept="image/*">
+  </div>
+</div>
+
+<!-- 이동 시트 -->
+<div class="sheetwrap" id="goWrap">
+  <div class="sheet">
+    <div id="goStage">
+      <div class="spin" id="goSpin"></div>
+      <div id="goIcon" style="display:none">◎</div>
+      <h2 id="goTitle">준비하고 있어요…</h2>
+      <div class="desc" id="goMsg">잠깐만요.</div>
+    </div>
+    <div class="sheetbtns">
+      <button class="btn btn-ghost" id="goClose">닫기</button>
+    </div>
+  </div>
+</div>
+
+<!-- 개발자 모드 -->
+<div id="devPanel">
+  <h3>DEVELOPER MODE — M4 문제 상세</h3>
+  <select id="devQuest"></select>
+  <div class="dev-grid">
+    <div class="dev-cell"><div class="k">id</div><div class="v" id="dId">–</div></div>
+    <div class="dev-cell"><div class="k">status</div><div class="v" id="dStatus">–</div></div>
+    <div class="dev-cell"><div class="k">radius m</div><div class="v" id="dRadius">–</div></div>
+    <div class="dev-cell"><div class="k">difficulty</div><div class="v" id="dDiff">–</div></div>
+    <div class="dev-cell"><div class="k">viewShiftTol</div><div class="v" id="dTol">–</div></div>
+    <div class="dev-cell"><div class="k">attempts</div><div class="v" id="dAtt">–</div></div>
+    <div class="dev-cell"><div class="k">solves</div><div class="v" id="dSol">–</div></div>
+    <div class="dev-cell"><div class="k">center</div><div class="v" id="dCenter">–</div></div>
+    <div class="dev-cell"><div class="k">peekUsed(범위)</div><div class="v" id="dPeek">false</div></div>
+    <div class="dev-cell"><div class="k">overlayUsed</div><div class="v" id="dOv">false</div></div>
+    <div class="dev-cell"><div class="k">rewardFactor</div><div class="v" id="dFactor">1</div></div>
+    <div class="dev-cell"><div class="k">nonce</div><div class="v" id="dNonce">–</div></div>
+  </div>
+  <div class="dev-slider">hintPenalty.peek (범위 좁히기): <span id="dvPeek"></span>
+    <input type="range" min="0.1" max="1" step="0.05" id="dsPeek"></div>
+  <div class="dev-slider">hintPenalty.overlay: <span id="dvOv"></span>
+    <input type="range" min="0.1" max="1" step="0.05" id="dsOv"></div>
+  <div id="devLog"></div>
+</div>
+
+<script src="api.js"></script>
+<script>
+'use strict';
+/* ================================================================
+ * 외계인 찾기 · M4 문제 상세·힌트·겹쳐보기
+ * ----------------------------------------------------------------
+ * 층 구조 (위에서 아래로 의존, 아래가 위를 모른다):
+ *   API     데이터 단일 통로 (시스템_설계 5.5장) — 표준 api.js v1.4 (<script src>)
+ *   Reward  힌트 차감 계산 한 곳 (CONFIG.hintPenalty)
+ *   Words   숫자 → 말 변환표 (시스템_설계 6장: 사용자 화면엔 연출만)
+ *   Screen  화면 상태 (해요체)
+ *   Blend   겹쳐보기 — 정지 화면 blend. 라이브 카메라 오버레이는 v2
+ *   Dev     개발자 모드 (버전 표기 7회 탭 또는 ?dev=1)
+ *
+ * 통합 (2026-09-01): 내장 api 블록 제거 → 표준 api.js v1.4.
+ *   도움 사용은 API.recordHint로 다리에 기록하고, 로드 시 API.getHints로
+ *   복원한다 (다리 = 서버 Attempt의 대역, 시스템_설계 5.7 판정 6).
+ *   "찾으러 가기"는 난수 발급 후 M2 촬영 인증 화면으로 실제 이동한다.
+ *
+ * PWA 대비: 메타·매니페스트 준비 완료 (M5와 동일 구조).
+ * ================================================================ */
+
+/* ================================================================
+ * Reward — 도움 차감 계산은 여기 한 곳에서만
+ * 계약: CONFIG.hintPenalty {peek:0.7, overlay:0.5}
+ * 둘 다 쓰면 곱하지 않고 더 큰 쪽 하나만 적용한다 (시스템_설계 5.7 판정 2).
+ *   근거: 원칙 4 "오판 방향은 관대한 쪽으로". 정직하게 헤매다 결국 둘 다 쓴
+ *   사람과 처음부터 답을 사려는 사람을 같은 무게로 벌하지 않는다.
+ * 사용자 화면에는 배수를 절대 쓰지 않는다. Words.reward()가 말로 바꾼다.
+ * ============================================================== */
+const Reward = {
+  peekUsed: false, overlayUsed: false,
+  reset() { this.peekUsed = false; this.overlayUsed = false; },
+  factor() {
+    const used = [];
+    if (this.peekUsed)    used.push(CFG.hintPenalty.peek);
+    if (this.overlayUsed) used.push(CFG.hintPenalty.overlay);
+    return used.length ? Math.round(Math.min(...used) * 100) / 100 : 1;
+  },
+};
+
+/* ================================================================
+ * Words — 숫자를 말로 (시스템_설계 6장)
+ * 여기를 거치지 않은 숫자는 사용자 화면에 나가지 않는다.
+ * ============================================================== */
+const Words = {
+  /** 반경을 말로. 좁혀진 반경(50·150·250m)도 들어오므로 구간으로 판단한다. */
+  radius(m) {
+    if (m <= 150) return '골목 하나 안이에요';
+    if (m <= 350) return '걸어서 몇 분 안이에요';
+    return '한참 헤맬 수도 있어요';
+  },
+  difficulty: {
+    easy:    { label:'느슨하게', note:'비슷한 자리면 통과돼요' },
+    normal:  { label:'보통',     note:'그 자리 그 방향이면 돼요' },
+    precise: { label:'정밀하게', note:'각도까지 맞춰야 해요' },
+  },
+  status: {
+    live:    null,
+    review:  { cls:'review',  text:'검증 중' },
+    dormant: { cls:'dormant', text:'쉬는 중' },
+  },
+  /** 시도·성공을 말로. 사람 수는 그대로 쓰되 성공률 숫자는 쓰지 않는다. */
+  stat(stats) {
+    const { attempts, solves } = stats;
+    if (solves === 0) return '아직 아무도 못 찾았어요. <em>첫 발견</em>이 될 수도 있어요.';
+    const rate = solves / Math.max(attempts, 1);
+    let tail;
+    if (rate >= 0.4)      tail = '찾은 사람이 꽤 많아요.';
+    else if (rate >= 0.2) tail = '몇 번씩 다녀간 사람도 있어요.';
+    else                  tail = '헛걸음한 사람이 더 많았어요.';
+    return '<em>' + solves + '명</em>이 먼저 찾았어요. ' + tail;
+  },
+  /** 보상 배수를 말로. 숫자 금지. */
+  reward() {
+    if (Reward.peekUsed && Reward.overlayUsed)
+      return { warn:true,  text:'도움을 두 번 받았지만, 큰 쪽 하나만큼만 줄어요.' };
+    if (Reward.overlayUsed)
+      return { warn:true,  text:'겹쳐보기를 써서 이번 포인트는 꽤 줄어요.' };
+    if (Reward.peekUsed)
+      return { warn:true,  text:'범위를 좁혀서 이번 포인트는 조금 줄어요.' };
+    return { warn:false, text:'지금 찾으면 포인트를 다 받아요.' };
+  },
+};
+
+/* ================================================================
+ * Screen — 화면 상태 (해요체)
+ * ============================================================== */
+let CFG = null, QUEST = null;
+const $ = id => document.getElementById(id);
+
+/** 테마 적용 한 곳 — 초기값·토글 둘 다 여기를 거친다 */
+function applyTheme(t) {
+  document.documentElement.dataset.theme = t;
+  document.querySelector('meta[name=theme-color]').content = t === 'dark' ? '#111319' : '#E0E2DB';
+}
+
+const Screen = (() => {
+
+  function render(q) {
+    QUEST = q;
+    $('questPhoto').src = q.photo;
+    $('blendQuest').src = q.photo;
+    $('questTitle').textContent = q.title;
+    $('questArea').textContent = q.area;
+
+    // 배지
+    const b = [];
+    const st = Words.status[q.status];
+    if (st) b.push('<span class="badge ' + st.cls + '">' + st.text + '</span>');
+    if (q.solvedByMe) b.push('<span class="badge found">찾음</span>');
+    $('questBadges').innerHTML = b.join('');
+
+    paintChips();
+    $('questStat').innerHTML = Words.stat(q.stats);
+    $('hint1').textContent = q.hint;
+    $('shrinkNote').style.display = 'none';
+    $('hintFrom').textContent = q.status === 'review'
+      ? '아직 검증 중인 문제예요. 세 명이 찾으면 정식 문제가 돼요.' : '';
+
+    // 쉬는 중인 문제는 찾으러 갈 수 없다 (M3 규칙과 동일)
+    const sleeping = q.status === 'dormant';
+    $('btnGo').disabled = sleeping;
+    $('btnGo').textContent = sleeping ? '지금은 쉬는 문제예요'
+                          : (q.solvedByMe ? '한 번 더 찾으러 가기' : '찾으러 가기');
+
+    // 도움 사용 상태 복원 — 다리(API.getHints)가 서버 Attempt의 대역이므로
+    // 새로고침·화면 이동 뒤에도 쓴 도움은 쓴 것으로 남는다 (시스템_설계 5.7 판정 6)
+    Reward.reset();
+    const used = API.getHints(q.id);
+    Reward.peekUsed = used.includes('peek');
+    Reward.overlayUsed = used.includes('overlay');
+    if (Reward.peekUsed) {
+      QUEST.radius = Math.round(QUEST.radius * CFG.hintShrink);
+      $('shrinkNote').textContent =
+        '범위를 절반으로 줄였어요. 지도에서도 원이 작아져 있어요.';
+      $('shrinkNote').style.display = 'block';
+      $('btnPeek').disabled = true;
+      $('btnPeek').textContent = '범위를 좁혔어요';
+      paintChips();
+    } else {
+      $('btnPeek').disabled = false;
+      $('btnPeek').textContent = '범위 좁히기';
+    }
+    paintReward();
+    Dev.showQuest(q);
+    window.scrollTo(0, 0);
+  }
+
+  /** 반경은 출제자가 정해 공개한 값이라 숫자가 그대로 나간다 (시스템_설계 6장 예외).
+      범위를 좁히면 이 함수만 다시 부른다. */
+  function paintChips() {
+    const q = QUEST;
+    $('questChips').innerHTML =
+      '<span class="chip' + (Reward.peekUsed ? ' blue' : '') + '">' +
+        (Reward.peekUsed ? '좁힌 범위 <b>' : '여기서 <b>') + q.radius + 'm</b> 안 · ' +
+        Words.radius(q.radius) + '</span>' +
+      '<span class="chip blue"><b>' + Words.difficulty[q.difficulty].label + '</b> · ' +
+        Words.difficulty[q.difficulty].note + '</span>';
+  }
+
+  function paintReward() {
+    const r = Words.reward();
+    $('rewardText').textContent = r.text;
+    $('rewardLine').classList.toggle('warn', r.warn);
+    Dev.showReward();
+  }
+
+  /** 확인 시트 — 도움을 쓰기 전에 대가를 말로 알려준다 */
+  function confirmSheet(title, msg, onYes) {
+    $('confirmTitle').textContent = title;
+    $('confirmMsg').textContent = msg;
+    $('confirmWrap').classList.add('on');
+    const close = () => {
+      $('confirmWrap').classList.remove('on');
+      $('confirmYes').onclick = null; $('confirmNo').onclick = null;
+    };
+    $('confirmYes').onclick = () => { close(); onYes(); };
+    $('confirmNo').onclick = close;
+  }
+
+  /** 범위 좁히기 — 추가 힌트는 출제자가 아니라 시스템이 만든다.
+      반경을 CONFIG.hintShrink 배로 줄인다 (시스템_설계 5.7 판정 3).
+      통합하면 지도(M3)의 원도 같이 작아진다. */
+  function shrink() {
+    if (Reward.peekUsed) return;
+    confirmSheet('찾을 범위를 좁힐까요?',
+      '헤맬 범위를 절반으로 줄여 드려요. 대신 이번 문제의 포인트가 조금 줄어요.',
+      () => {
+        Reward.peekUsed = true;
+        API.recordHint(QUEST.id, 'peek');   // 다리에 기록 (5.7 판정 6)
+        QUEST.radius = Math.round(QUEST.radius * CFG.hintShrink);
+        paintChips();
+        $('shrinkNote').textContent =
+          '범위를 절반으로 줄였어요. 지도에서도 원이 작아져 있어요.';
+        $('shrinkNote').style.display = 'block';
+        $('btnPeek').disabled = true;
+        $('btnPeek').textContent = '범위를 좁혔어요';
+        paintReward();
+        Dev.showQuest(QUEST);
+        Dev.log('범위 좁힘 → ' + QUEST.radius + 'm · factor=' + Reward.factor());
+      });
+  }
+
+  function overlay() {
+    if (Reward.overlayUsed) { Blend.open(); return; }
+    confirmSheet('겹쳐보기를 쓸까요?',
+      '내 사진을 출제된 장면 위에 겹쳐 각도를 맞춰 볼 수 있어요. 대신 이번 문제의 포인트가 꽤 줄어요.',
+      () => {
+        Reward.overlayUsed = true;
+        API.recordHint(QUEST.id, 'overlay');   // 다리에 기록 (5.7 판정 6)
+        paintReward();
+        Dev.log('overlay 사용 · factor=' + Reward.factor());
+        Blend.open();
+      });
+  }
+
+  /** 찾으러 가기 — 서버가 일회용 난수를 발급한다 (시스템_설계 4장).
+      난수 문자열은 사용자 화면에 절대 노출하지 않는다 (M3 점검 반영). */
+  async function go() {
+    $('goSpin').style.display = 'block';
+    $('goIcon').style.display = 'none';
+    $('goTitle').textContent = '준비하고 있어요…';
+    $('goMsg').textContent = '이 문제를 지금부터 찾는 것으로 기록해요.';
+    $('goWrap').classList.add('on');
+    try {
+      const n = await API.issueNonce(QUEST.id);
+      Dev.showNonce(n);
+      $('goSpin').style.display = 'none';
+      $('goIcon').style.display = 'block';
+      $('goTitle').textContent = '준비됐어요';
+      $('goMsg').textContent = '촬영 화면으로 넘어가요.';
+      // 실제 이동 (통합). tol은 넘기지 않는다 — 인증 화면이 difficulty에서 직접 읽는다.
+      setTimeout(() => {
+        location.href = 'camera.html?id=' + QUEST.id +
+          '&nonce=' + encodeURIComponent(n.nonce);
+      }, 700);
+    } catch (e) {
+      Dev.log('난수 발급 실패: ' + (e && e.message || e));
+      $('goSpin').style.display = 'none';
+      $('goIcon').style.display = 'block';
+      $('goIcon').textContent = '…';
+      $('goTitle').textContent = '지금은 연결이 안 돼요';
+      $('goMsg').textContent = '잠시 뒤에 한 번만 다시 눌러 주세요.';
+    }
+  }
+
+  async function load(id) {
+    try {
+      const q = await API.getQuest(id);
+      render(q);
+      $('viewBoot').classList.remove('on');
+      $('viewDetail').classList.add('on');
+      $('goBar').classList.add('on');
+      Dev.log('문제 로드: ' + id);
+    } catch (e) {
+      Dev.log('문제 로드 실패: ' + (e && e.message || e));
+      $('bootMsg').innerHTML = '이 문제를 찾을 수 없어요.<br><small>지도에서 다시 골라 주세요.</small>';
+    }
+  }
+
+  function init() {
+    $('btnPeek').addEventListener('click', shrink);
+    $('btnOverlay').addEventListener('click', overlay);
+    $('btnGo').addEventListener('click', go);
+    $('goClose').addEventListener('click', () => $('goWrap').classList.remove('on'));
+    $('btnBack').addEventListener('click', () => {
+      location.href = 'index.html';   // M3 지도로 (통합)
+    });
+    $('btnTheme').addEventListener('click', () => {
+      const t = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+      applyTheme(t);
+      API.setTheme(t);   // 다리에 저장 — 화면을 오가도 테마가 이어진다
+    });
+  }
+
+  return { init, load, render, paintReward };
+})();
+
+/* ================================================================
+ * Blend — 겹쳐보기 (정지 화면 blend)
+ * 확정 계약: 출제 사진 ↔ 갤러리에서 고른 내 사진, 슬라이더.
+ *            라이브 카메라 오버레이는 v2 (https 단계) — 여기서 구현하지 않는다.
+ * 고른 사진은 화면 안에서만 쓰이고 어디로도 올라가지 않는다 (개인정보 계약).
+ * ============================================================== */
+const Blend = (() => {
+  let url = null;
+
+  function setMix(v) {
+    $('blendMine').style.opacity = (v / 100).toFixed(2);
+    $('blendQuest').style.opacity = (1 - v / 200).toFixed(2);   // 완전히 사라지진 않게
+  }
+
+  function pick(file) {
+    if (url) URL.revokeObjectURL(url);
+    try {
+      url = URL.createObjectURL(file);
+    } catch (e) {
+      Dev.log('사진 열기 실패: ' + (e && e.message || e));
+      return;
+    }
+    const img = $('blendMine');
+    img.onerror = () => {
+      Dev.log('사진 디코드 실패');
+      img.style.display = 'none';
+      $('blendEmpty').style.display = 'grid';
+      $('blendEmpty').innerHTML = '이 사진은 열 수 없어요.<br><small>다른 사진으로 골라 주세요.</small>';
+    };
+    img.onload = () => { Dev.log('겹쳐보기 사진 준비됨'); };
+    img.src = url;
+    img.style.display = 'block';
+    $('blendEmpty').style.display = 'none';
+    setMix(Number($('blendSlider').value));
+  }
+
+  function open() { $('blendWrap').classList.add('on'); }
+  function close() { $('blendWrap').classList.remove('on'); }
+
+  function init() {
+    $('blendSlider').addEventListener('input', e => setMix(Number(e.target.value)));
+    $('btnPickMine').addEventListener('click', () => $('filePick').click());
+    $('filePick').addEventListener('change', e => {
+      const f = e.target.files[0]; e.target.value = '';
+      if (f) pick(f);
+    });
+    $('blendClose').addEventListener('click', close);
+    setMix(50);
+  }
+  return { init, open, close, pick, setMix };
+})();
+
+/* ================================================================
+ * Dev — 개발자 모드 (버전 표기 7회 탭 또는 ?dev=1)
+ * 여기에만 숫자·좌표·난수가 나온다 (시스템_설계 6장).
+ * ============================================================== */
+const Dev = (() => {
+  let taps = 0, timer = null, lines = [];
+  const api = {
+    log(m) {
+      lines.push(m); if (lines.length > 40) lines.shift();
+      const el = $('devLog'); if (el) { el.textContent = lines.join('\n'); el.scrollTop = 1e5; }
+    },
+    showQuest(q) {
+      $('dId').textContent = q.id;
+      $('dStatus').textContent = q.status;
+      $('dRadius').textContent = q.radius;
+      $('dDiff').textContent = q.difficulty;
+      $('dTol').textContent = CFG.viewShiftTol[q.difficulty] + '%';
+      $('dAtt').textContent = q.stats.attempts;
+      $('dSol').textContent = q.stats.solves;
+      $('dCenter').textContent = q.center.lat.toFixed(4) + ',' + q.center.lng.toFixed(4);
+      $('dNonce').textContent = '–';
+      api.showReward();
+    },
+    showReward() {
+      $('dPeek').textContent = String(Reward.peekUsed);
+      $('dOv').textContent = String(Reward.overlayUsed);
+      $('dFactor').textContent = Reward.factor();
+    },
+    showNonce(n) {
+      $('dNonce').textContent = n.nonce;
+      api.log('nonce 발급 (ttl ' + n.ttlSec + 's, by ' + n.issuedBy + ')');
+    },
+    bind() {
+      const bind = (s, l, get, set) => {
+        $(s).value = get(); $(l).textContent = get();
+        $(s).addEventListener('input', e => {
+          set(Number(e.target.value)); $(l).textContent = e.target.value;
+          Screen.paintReward();
+        });
+      };
+      bind('dsPeek','dvPeek', () => CFG.hintPenalty.peek,    v => CFG.hintPenalty.peek = v);
+      bind('dsOv','dvOv',     () => CFG.hintPenalty.overlay, v => CFG.hintPenalty.overlay = v);
+    },
+    async fillQuestPicker() {
+      const list = await API.getQuests();
+      $('devQuest').innerHTML = list
+        .map(q => '<option value="' + q.id + '">' + q.id + ' · ' + q.title + ' (' + q.status + ')</option>')
+        .join('');
+      $('devQuest').addEventListener('change', e => Screen.load(e.target.value));
+    },
+    open() { $('devPanel').classList.add('on'); },
+  };
+  $('verTap').addEventListener('click', () => {
+    taps++; clearTimeout(timer); timer = setTimeout(() => taps = 0, 1500);
+    if (taps >= 7) { taps = 0; $('devPanel').classList.toggle('on'); }
+  });
+  return api;
+})();
+
+/* ================================================================
+ * 부트스트랩 — M4는 판정 엔진을 쓰지 않는다 (OpenCV 불필요, 즉시 뜬다)
+ * ============================================================== */
+(async function boot() {
+  applyTheme(API.getTheme());
+  Screen.init();
+  Blend.init();
+  const params = new URLSearchParams(location.search);
+  CFG = await API.getConfig();
+  Dev.bind();
+  await Dev.fillQuestPicker();
+  const id = params.get('id') || 'q02';
+  $('devQuest').value = id;
+  if (params.get('dev') === '1') Dev.open();
+  await Screen.load(id);
+})();
+</script>
+</body>
+</html>

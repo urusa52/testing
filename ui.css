@@ -1,0 +1,100 @@
+/* ═══════════════════════════════════════════════════════════════════
+   외계인 찾기 — 공용 디자인 토큰 (shadcn/ui 시맨틱 규약)
+   ───────────────────────────────────────────────────────────────────
+   목적: 화면들이 이 토큰만 소비하게 해서,
+   ① 지금은 CSS만으로 shadcn 시각 언어를 입히고
+   ② 나중에 React+shadcn으로 갈 때 이 이름들이 Tailwind 테마
+      (--background, --card, --primary …)로 1:1 이관되게 한다.
+   값의 원본은 작업지침.md 디자인 토큰 (계약: 반경 16px, 브랜드 팔레트).
+   ═══════════════════════════════════════════════════════════════════ */
+
+:root, :root[data-theme="dark"] {
+  /* 바탕 */
+  --background: #111319;
+  --foreground: #EDEFF5;
+  /* 카드/표면 */
+  --card: #1A1D26;
+  --card-foreground: #EDEFF5;
+  --popover: #1E2230;
+  --popover-foreground: #EDEFF5;
+  /* 주 색 (민트) — 버튼·강조·활성 */
+  --primary: #8FE6C4;
+  --primary-foreground: #0D2A1F;
+  /* 보조 (블루) */
+  --secondary: #9FD4FF;
+  --secondary-foreground: #0E2334;
+  /* 주의/경고 (앰버) — shadcn 표준엔 없지만 브랜드 축이라 유지 */
+  --warning: #FFD98E;
+  --warning-foreground: #3A2D0E;
+  /* 실패/파괴 */
+  --destructive: #F0899B;
+  --destructive-foreground: #33101A;
+  /* 흐린 표면·보조 텍스트 */
+  --muted: #232733;
+  --muted-foreground: #9AA3B5;
+  --accent: #232733;
+  --accent-foreground: #EDEFF5;
+  /* 선·포커스 */
+  --border: rgba(237, 239, 245, 0.10);
+  --input: rgba(237, 239, 245, 0.14);
+  --ring: rgba(143, 230, 196, 0.55);
+  /* 형태 (계약: 16px) */
+  --radius: 16px;
+  --radius-sm: 10px;
+  /* 그림자 — 어두운 테마는 얕게 */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.25);
+  --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.35);
+}
+
+:root[data-theme="light"] {
+  --background: #E0E2DB;
+  --foreground: #23262E;
+  --card: #F4F5F1;
+  --card-foreground: #23262E;
+  --popover: #FFFFFF;
+  --popover-foreground: #23262E;
+  --primary: #2E7D64;
+  --primary-foreground: #F2FBF7;
+  --secondary: #2F6C93;
+  --secondary-foreground: #F0F7FC;
+  --warning: #8A6520;
+  --warning-foreground: #FCF6E8;
+  --destructive: #A93B52;
+  --destructive-foreground: #FBEFF1;
+  --muted: #E8E9E3;
+  --muted-foreground: #5B6270;
+  --accent: #E8E9E3;
+  --accent-foreground: #23262E;
+  --border: rgba(35, 38, 46, 0.14);
+  --input: rgba(35, 38, 46, 0.22);
+  --ring: rgba(46, 125, 100, 0.45);
+  --shadow-sm: 0 1px 2px rgba(35, 38, 46, 0.08);
+  --shadow-md: 0 4px 14px rgba(35, 38, 46, 0.12);
+}
+
+/* ── 공통 바탕 (shadcn 기본 문법) ─────────────────────────────── */
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Noto Sans KR", "Apple SD Gothic Neo", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  letter-spacing: -0.01em;
+}
+
+/* 포커스 링 — 키보드 접근성, shadcn 방식 */
+:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+/* ═══ 이관 각서 ═══════════════════════════════════════════════════
+   React+shadcn 전환 시:
+   1. 위 토큰 블록을 globals.css의 @layer base :root로 그대로 복사
+      (shadcn은 hsl 성분 표기를 권장하지만 hex도 동작한다)
+   2. api.js·엔진.js는 모듈 그대로 import (프레임워크 무관 순수 JS)
+   3. 화면의 대응: 카드→<Card>, 확인 시트→<Drawer>, 버튼→<Button
+      variant>, 배지→<Badge>, 입력→<Input>, 하단 탭→<Tabs>
+   4. 반경 16px(계약)은 tailwind.config의 borderRadius.lg로
+   ═══════════════════════════════════════════════════════════════ */
