@@ -913,10 +913,22 @@ body{
    카카오맵으로 갈아탈 때 이 객체만 KakaoAdapter로 바꾼다.
    화면 로직(아래 App)은 이 인터페이스만 알고 있고 Leaflet을 모른다.
    ===================================================================== */
+/* CARTO 타일 키 ─────────────────────────────────────────────────────────
+   2026년 9월, CARTO가 키 없는 래스터 타일 요청에 "API KEY REQUIRED" 워터마크를
+   넣기 시작했다. 지도는 그대로 뜨지만 워터마크가 얹힌다.
+   무료 발급(계정 불필요, 이메일로 1분): https://carto.com/basemaps/apikey/
+     · 비상업(개인·연구·교육·비영리) 월 500만 타일
+     · 상업 월 100만 타일
+     · 조건은 저작자 표시 유지 — 아래 attr에 이미 들어 있다
+   빈 문자열로 두면 키 없이 동작하고 워터마크가 보인다.
+   정식 서비스에서는 카카오맵으로 교체 예정 (MapAdapter 한 곳만 바꾸면 된다). */
+const CARTO_KEY = 'cb1_43hp_1_a042a21050c1b27da0b6c9da';
+const CARTO_Q = CARTO_KEY ? '?key=' + CARTO_KEY : '';
+
 const TILES = {
-  dark:  { url:'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+  dark:  { url:'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png' + CARTO_Q,
            attr:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>, &copy; <a href="https://carto.com/attributions">CARTO</a>' },
-  light: { url:'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+  light: { url:'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png' + CARTO_Q,
            attr:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>, &copy; <a href="https://carto.com/attributions">CARTO</a>' },
 };
 
